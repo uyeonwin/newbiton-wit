@@ -42,22 +42,34 @@ async def search_address(query: str = Query(..., description="검색할 주소/�
     results = []
 
     async with httpx.AsyncClient(timeout=5.0) as client:
+        # 1. 키워드 검색 (고려대학교, 역삼역, OO빌딩 등)
         res_k = await client.get(
             "https://dapi.kakao.com/v2/local/search/keyword.json",
             headers=headers,
             params={"query": clean_query}
         )
-        
-        # 💡 [여기 추가] 카카오가 보낸 실제 응답 출력
-        print(f"👉 카카오 응답 코드: {res_k.status_code}")
-        print(f"👉 카카오 응답 내용: {res_k.text}")
-
         if res_k.status_code == 200:
             for d in res_k.json().get("documents", []):
                 addr = d.get("road_address_name") or d.get("address_name")
                 place = d.get("place_name", "")
                 if addr:
                     results.append({"place_name": place, "address_name": addr})
+
+        # 2. 키워드 결과가 없으면 일반 주소 검색 시도 (도로명/지번)
+        if not results:
+            res_a = await client.get(
+                "https://dapi.kakao.com/v2/local/search/address.json",
+                headers=headers,
+                params={"query": clean_query}
+            )
+            if res_a.status_code == 200:
+                for d in res_a.json().get("documents", []):
+                    road = d.get("road_address")
+                    jibun = d.get("address")
+                    addr_name = road.get("address_name") if road else (jibun.get("address_name") if jibun else d.get("address_name"))
+                    building = road.get("building_name") if road and road.get("building_name") else ""
+                    display_name = f"{addr_name} ({building})" if building else addr_name
+                    results.append({"place_name": display_name, "address_name": addr_name})
 
     return {"results": results[:7]}
 
