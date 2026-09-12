@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "WiT - 알바몬 체감 시급 계산기",
+  "version": "1.0",
+  "description": "알바몬 공고에 왕복 교통비와 이동시간을 차감한 실질 체감 시급을 띄워줍니다.",
+  "content_scripts": [
+    {
+      "matches": ["*://*.albamon.com/*"],
+      "js": ["content.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
