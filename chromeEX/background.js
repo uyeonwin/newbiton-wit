@@ -1,4 +1,4 @@
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://wit-backend-pu4g.onrender.com";
 
 async function parseJsonOrText(response) {
   const text = await response.text();
