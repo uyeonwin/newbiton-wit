@@ -191,6 +191,8 @@ function initModals() {
           </div>
         </div>
 
+        <p id="wit-modal-time-notice" role="note" style="display:none; font-size:12px; line-height:1.6; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px; margin:0 0 12px 0;"></p>
+
         <p style="font-size:10px; color:#9ca3af; margin:0 0 12px 0;">* 체감 시급 = (임금 - 왕복교통비) ÷ (근무시간 + 이동시간)</p>
 
         <div style="text-align:right;">
@@ -260,6 +262,74 @@ function extractCleanAddress(cardText) {
   return "서울 중구 광희동";
 }
 
+
+// 시급: 공고 근무시간을 사용합니다. 시간 미기재·시간 협의이면 4시간.
+// 일급: 공고 근무시간과 관계없이 8시간을 사용합니다.
+function getWorkTimeBasis(cardText, isDaily) {
+  if (isDaily) {
+    return {
+      hours: 8,
+      notice: "해당 계산 결과는 일급을 8시간 기준으로 계산한 결과입니다."
+    };
+  }
+
+  const fallback = {
+    hours: 4,
+    notice: "공고에 근무시간이 명시되어 있지 않거나 근무시간 협의가 가능하여, 해당 계산 결과는 4시간을 기준으로 계산된 결과입니다."
+  };
+  const needsCheck = {
+    hours: null,
+    notice: "공고의 근무시간을 하나로 확인할 수 없습니다. 여러 시간대 또는 시간 표기를 확인해 주세요."
+  };
+  const text = String(cardText || "").replace(/\u00a0/g, " ");
+
+  // '근무시간' 항목이 있으면 그 항목을 우선 사용합니다.
+  // 급여·근무요일 등에 붙은 '협의 가능'을 근무시간 협의로 오인하지 않습니다.
+  const labeled = text.match(/근무\s*시간\s*[:：]?\s*([\s\S]*?)(?=근무\s*(?:요일|기간|지역|장소|주소)|급여|복리후생|지원조건|모집조건|상세모집내용|$)/);
+  let timeText = labeled ? labeled[1].trim() : text;
+  if (/(?:근무\s*)?시간\s*[:：]?\s*(?:협의|미정|추후)/.test(text)) return fallback;
+  if (labeled && /협의|미정|추후/.test(timeText)) return fallback;
+
+  // 예: 09:00~18:00, 9:00 - 18:00, 09시~18시, 9시 30분~18시.
+  const rangePattern = /(\d{1,2})\s*(?::\s*(\d{2})|시(?:\s*(\d{1,2})\s*분)?)\s*(?:~|～|〜|∼|－|–|—|-|부터)\s*(\d{1,2})\s*(?::\s*(\d{2})|시(?:\s*(\d{1,2})\s*분)?)\s*(?:까지)?/g;
+  const ranges = [...timeText.matchAll(rangePattern)];
+  if (!ranges.length) {
+    // 시작·종료 시각 대신 '일 6시간' 또는 '근무시간: 6시간'인 공고.
+    const duration = labeled
+      ? timeText.match(/^\s*(?:(?:하루|일)\s*)?(\d+(?:\.\d+)?)\s*시간(?:\s*(\d{1,2})\s*분)?\s*(?:근무)?\s*$/)
+      : text.match(/(?:하루|일)\s*(\d+(?:\.\d+)?)\s*시간(?:\s*(\d{1,2})\s*분)?/);
+    if (duration) {
+      const nearby = timeText.slice(duration.index, duration.index + duration[0].length + 25).split(/\n|급여|근무요일|근무기간/)[0];
+      if (/협의|미정|추후/.test(nearby)) return fallback;
+      const minutes = Number(duration[2] || 0);
+      const hours = Number(duration[1]) + minutes / 60;
+      if (minutes < 60 && hours > 0 && hours <= 24) return { hours, notice: "" };
+    }
+    if (/\d\s*(?:시|시간|:)/.test(timeText)) return needsCheck;
+    return fallback;
+  }
+
+  // 복수 시간대가 서로 다르면 한 근무시간으로 확정할 수 없습니다.
+  // 이 경우 임의로 4시간을 적용하지 않고 확인을 요청합니다.
+  const durations = [];
+  for (const match of ranges) {
+    const startHour = Number(match[1]);
+    const startMinute = Number(match[2] || match[3] || 0);
+    const endHour = Number(match[4]);
+    const endMinute = Number(match[5] || match[6] || 0);
+    if (startHour > 23 || endHour > 24 || startMinute > 59 || endMinute > 59 || (endHour === 24 && endMinute !== 0)) return needsCheck;
+    let minutes = endHour * 60 + endMinute - (startHour * 60 + startMinute);
+    if (minutes < 0) minutes += 24 * 60; // 예: 22:00~06:00 → 8시간
+    if (minutes <= 0) return needsCheck;
+    const after = timeText.slice(match.index + match[0].length);
+    const nearby = after.split(/\n|급여|근무요일|근무기간|근무지역/)[0];
+    if (/협의|미정|추후/.test(nearby)) return fallback;
+    durations.push(minutes / 60);
+  }
+  if (durations.some(hours => hours !== durations[0])) return needsCheck;
+  return { hours: durations[0], notice: "" };
+}
+
 function injectWageBadges() {
   initModals();
 
@@ -303,15 +373,15 @@ function injectWageBadges() {
     const card = el.closest("li, tr, .item, .box, div[class*='item'], div[class*='card']");
     const workAddr = extractCleanAddress(card?.innerText || "");
 
-    const isDaily = hasDaily || numOnly >= 60000;
-    const workHours = isDaily ? 8 : 4;
+    // 1. 근무시간 및 기본 급여 계산
+    // 급여 유형은 공고 표기를 따릅니다. 금액만으로 일급으로 바꾸지 않습니다.
+    const isDaily = hasDaily && !hasHourly;
+    const workTimeBasis = getWorkTimeBasis(card?.innerText || "", isDaily);
+    const workHours = workTimeBasis.hours;
     const totalEarned = isDaily ? numOnly : (numOnly * workHours);
-    const baseHourly = isDaily ? Math.round(numOnly / workHours) : numOnly;
+    const baseHourly = isDaily ? numOnly / workHours : numOnly;
 
-    const initialReal = Math.round((totalEarned - 3000) / (workHours + 1.33));
-    const initialDrop = (((baseHourly - initialReal) / baseHourly) * 100).toFixed(1);
-    const theme = getColorTheme(initialDrop);
-
+    // 2. 초기 뱃지 생성 (API 로딩 중 표시할 임시 뱃지)
     const badge = document.createElement("button");
     badge.type = "button";
     badge.className = "wit-real-badge";
@@ -321,66 +391,85 @@ function injectWageBadges() {
       gap: 3px !important;
       margin-left: 6px !important;
       padding: 2px 6px !important;
-      background-color: ${theme.bg} !important;
-      border: 1px solid ${theme.border} !important;
+      background-color: #f3f4f6 !important;
+      border: 1px solid #d1d5db !important;
       border-radius: 4px !important;
       font-size: 11px !important;
       font-weight: 800 !important;
       line-height: 1.2 !important;
-      color: ${theme.text} !important;
+      color: #6b7280 !important;
       cursor: pointer !important;
       vertical-align: middle !important;
       white-space: nowrap !important;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
     `;
-    badge.innerHTML = `<span>${initialReal.toLocaleString()}원</span> <span style="font-size:9px; text-decoration:underline; font-weight:normal;">(체감시급)</span>`;
+    badge.innerHTML = `<span>계산중...</span>`;
+    el.insertAdjacentElement("afterend", badge);
 
-    badge.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    if (workHours === null) {
+      badge.textContent = "근무시간 확인 필요";
+      badge.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        alert(workTimeBasis.notice);
+      };
+      continue;
+    }
 
-      const modal = document.getElementById("wit-detail-modal");
-      modal.style.display = "flex";
-
-      document.getElementById("wit-modal-posted").innerText = `${baseHourly.toLocaleString()}원`;
-      document.getElementById("wit-modal-start-label").innerText = user.startPos;
-      document.getElementById("wit-modal-end-label").innerText = user.endPos;
-
-      document.getElementById("wit-modal-time-to").innerText = "...";
-      document.getElementById("wit-modal-cost-to").innerText = "...";
-      document.getElementById("wit-modal-time-from").innerText = "...";
-      document.getElementById("wit-modal-cost-from").innerText = "...";
-
+    // 3. 💡 ODsay API 실시간 호출 후 (시급*근무시간 - 교통비) / (이동시간 + 근무시간) 공식 적용
+    (async () => {
+      // API 경로 호출 (출발지 -> 근무지, 근무지 -> 도착지)
       const toTransit = await fetchODsayTransit(startAddr, workAddr);
       const fromTransit = await fetchODsayTransit(workAddr, endAddr);
 
-      document.getElementById("wit-modal-time-to").innerText = toTransit.time;
-      document.getElementById("wit-modal-cost-to").innerText = toTransit.cost.toLocaleString();
-      document.getElementById("wit-modal-time-from").innerText = fromTransit.time;
-      document.getElementById("wit-modal-cost-from").innerText = fromTransit.cost.toLocaleString();
-
+      // API 반환값: 왕복 총 이동시간(시간 단위) 및 왕복 총 교통비(원)
       const totalHours = (toTransit.time + fromTransit.time) / 60;
       const totalCost = toTransit.cost + fromTransit.cost;
-      const exactReal = Math.round((totalEarned - totalCost) / (workHours + totalHours));
-      const exactDrop = (((baseHourly - exactReal) / baseHourly) * 100).toFixed(1);
 
-      document.getElementById("wit-modal-realwage").innerText = exactReal.toLocaleString();
-      const dropBadge = document.getElementById("wit-modal-droprate");
-      dropBadge.innerText = `실제 시급보다 -${exactDrop}%p ↓`;
+      // 💡 요청하신 계산 공식 적용
+      const realWage = Math.round((totalEarned - totalCost) / (workHours + totalHours));
+      const dropRate = (((baseHourly - realWage) / baseHourly) * 100).toFixed(1);
+      const theme = getColorTheme(dropRate);
 
-      const realTheme = getColorTheme(exactDrop);
-      const box = document.getElementById("wit-modal-box");
-      box.style.backgroundColor = realTheme.bg;
-      box.style.borderColor = realTheme.border;
-      dropBadge.style.color = realTheme.text;
-      dropBadge.style.backgroundColor = realTheme.bg;
-      dropBadge.style.borderColor = realTheme.border;
+      // 뱃지 내용 및 색상 업데이트
+      badge.innerHTML = `<span>${realWage.toLocaleString()}원</span> <span style="font-size:9px; text-decoration:underline; font-weight:normal;">(체감시급)</span>`;
+      badge.style.backgroundColor = theme.bg;
+      badge.style.borderColor = theme.border;
+      badge.style.color = theme.text;
 
-      badge.innerHTML = `<span>${exactReal.toLocaleString()}원</span> <span style="font-size:9px; text-decoration:underline; font-weight:normal;">(체감시급)</span>`;
-      badge.style.backgroundColor = realTheme.bg;
-      badge.style.borderColor = realTheme.border;
-      badge.style.color = realTheme.text;
-    });
+      // 모달 클릭 이벤트 연결 (이미 계산된 API 데이터 그대로 전달)
+      badge.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const modal = document.getElementById("wit-detail-modal");
+        modal.style.display = "flex";
+
+        document.getElementById("wit-modal-posted").innerText = `${baseHourly.toLocaleString()}원`;
+        document.getElementById("wit-modal-start-label").innerText = user.startPos;
+        document.getElementById("wit-modal-end-label").innerText = user.endPos;
+
+        document.getElementById("wit-modal-time-to").innerText = toTransit.time;
+        document.getElementById("wit-modal-cost-to").innerText = toTransit.cost.toLocaleString();
+        document.getElementById("wit-modal-time-from").innerText = fromTransit.time;
+        document.getElementById("wit-modal-cost-from").innerText = fromTransit.cost.toLocaleString();
+
+        const timeNotice = document.getElementById("wit-modal-time-notice");
+        timeNotice.textContent = workTimeBasis.notice;
+        timeNotice.style.display = workTimeBasis.notice ? "block" : "none";
+
+        document.getElementById("wit-modal-realwage").innerText = realWage.toLocaleString();
+        const dropBadge = document.getElementById("wit-modal-droprate");
+        dropBadge.innerText = `실제 시급보다 -${dropRate}%p ↓`;
+
+        const box = document.getElementById("wit-modal-box");
+        box.style.backgroundColor = theme.bg;
+        box.style.borderColor = theme.border;
+        dropBadge.style.color = theme.text;
+        dropBadge.style.backgroundColor = theme.bg;
+        dropBadge.style.borderColor = theme.border;
+      };
+    })();
 
     el.insertAdjacentElement("afterend", badge);
   }
