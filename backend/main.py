@@ -27,8 +27,7 @@ app.add_middleware(
 )
 
 # 발급받으신 API 키
-ODSAY_API_KEY = os.getenv("ODSAY_API_KEY")
-KAKAO_REST_KEY = os.getenv("KAKAO_REST_KEY")
+
 KAKAO_ADDRESS_URL = "https://dapi.kakao.com/v2/local/search/address.json"
 KAKAO_KEYWORD_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
 ODSAY_ROUTE_URL = "https://api.odsay.com/v1/api/searchPubTransPathT"
