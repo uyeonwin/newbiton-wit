@@ -1,8 +1,12 @@
+import os
 import re
 import httpx
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -16,8 +20,8 @@ app.add_middleware(
 )
 
 # 발급받으신 API 키
-ODSAY_API_KEY = "n1njdnYBuCCoOhj6hUt0xLO1xRoLlIMxsJC2SGcA5wY"
-KAKAO_REST_KEY = "7448cc7b652c7a1c4150697898980eb2"
+ODSAY_API_KEY = os.getenv("ODSAY_API_KEY")
+KAKAO_REST_KEY = os.getenv("KAKAO_REST_KEY")
 
 class RouteRequest(BaseModel):
     start_address: str

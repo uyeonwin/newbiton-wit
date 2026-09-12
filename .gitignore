@@ -1,0 +1,14 @@
+# Python 관련 캐시 및 가상환경
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# 환경 변수 파일 (API 키 보호)
+.env
+
+# 운영체제 생성 파일
+.DS_Store
+Thumbs.db
