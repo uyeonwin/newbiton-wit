@@ -1,10 +1,10 @@
-# ⏱️ WiT - worth it?(체감 시급 계산기)
+# WiT - worth it?(체감 시급 계산기)
 
 > 통근 시간과 대중교통 요금을 반영하여 내가 실제로 버는 **진짜 체감 시급**을 계산해 주는 크롬 확장 프로그램입니다.
 
 ---
 
-**📌 프로젝트 소개 (Overview)**
+**프로젝트 소개**
 
 구직 과정에서 표기된 시급만 보고 지원했다가 **긴 통근 시간과 왕복 교통비** 때문에 체감 소득이 낮아지는 문제를 해결하기 위해 개발되었습니다.
 
@@ -12,7 +12,7 @@
 
 ---
 
-**💡 주요 기능 (Key Features)**
+**주요 기능**
 
 * **사용자 집 주소 설정 (Chrome Storage)**
 * 확장 프로그램 팝업 UI를 통해 사용자의 출발지(집 주소)를 간편하게 등록 및 저장합니다.
@@ -33,13 +33,13 @@
 
 ---
 
-**🧮 체감 시급 산출 공식 (Formula)**
+**체감 시급 산출 공식**
 
 $$\text{체감 시급} = \frac{(\text{공고 시급} \times \text{일 근무시간}) - \text{왕복 교통비}}{\text{일 근무시간} + \text{왕복 이동시간}}$$
 
 ---
 
-**🏗️ 시스템 아키텍처 (Architecture)**
+**시스템 아키텍처**
 
 (아키텍처) *전체 시스템 흐름도 (Popup UI -> Storage -> Content Script -> Kakao API -> DOM Injection)*
 
@@ -61,7 +61,7 @@ $$\text{체감 시급} = \frac{(\text{공고 시급} \times \text{일 근무시�
 
 ---
 
-**🛠️ 기술 스택 (Tech Stack)**
+**기술 스택**
 
 * **Frontend / Extension:** JavaScript (ES6+), HTML5, CSS3, Chrome Extension Manifest V3
 * **API:** Kakao Mobility API / Kakao Local API (Geocoding & Route)
@@ -69,7 +69,7 @@ $$\text{체감 시급} = \frac{(\text{공고 시급} \times \text{일 근무시�
 
 ---
 
-**🚀 시작 가이드 (Getting Started)**
+**시작 가이드**
 
 **설치 방법 (Installation)**
 
@@ -94,10 +94,10 @@ git clone https://github.com/uyeonwin/newbiton-wit.git
 
 ---
 
-**👥 팀원 소개 (Team)**
+**팀원 소개**
 
-| 이름 | 역할 | 담당 업무 |
-| --- | --- | --- |
+| 이름 | 역할 |
+| --- | --- |
 | **유수연** | PM, BE |
 | **김유진** | BE, 디자이너 |
 | **성연진** | FE, BE |
