@@ -1,4 +1,4 @@
-# ⏱️ RealWage (체감 시급 계산기)
+# ⏱️ WiT - worth it?(체감 시급 계산기)
 
 > 통근 시간과 대중교통 요금을 반영하여 내가 실제로 버는 **진짜 체감 시급**을 계산해 주는 크롬 확장 프로그램입니다.
 
@@ -9,8 +9,6 @@
 구직 과정에서 표기된 시급만 보고 지원했다가 **긴 통근 시간과 왕복 교통비** 때문에 체감 소득이 낮아지는 문제를 해결하기 위해 개발되었습니다.
 
 웹 브라우저에서 알바 공고를 조회할 때, 사용자의 집 주소와 근무지 주소 간의 이동 시간 및 교통비를 자동으로 계산하여 **실제 노동 가치에 맞는 체감 시급**을 화면에 바로 시각화해 줍니다.
-
-(사진) *실제 알바몬 공고 페이지 실행 화면 캡처*
 
 ---
 
@@ -77,7 +75,7 @@ $$\text{체감 시급} = \frac{(\text{공고 시급} \times \text{일 근무시�
 
 1. 본 리포지토리를 클론(Clone)하거나 ZIP 파일로 다운로드합니다.
 ```bash
-git clone https://github.com/your-username/real-wage-calculator.git
+git clone https://github.com/uyeonwin/newbiton-wit.git
 
 ```
 
@@ -85,14 +83,14 @@ git clone https://github.com/your-username/real-wage-calculator.git
 2. Chrome 브라우저를 열고 `chrome://extensions/` 로 이동합니다.
 3. 우측 상단의 '개발자 모드'를 활성화합니다.
 4. 좌측 상단의 **'압축해제된 확장 프로그램을 로드합니다'** 버튼을 클릭합니다.
-5. 다운로드한 프로젝트 폴더를 선택합니다.
+5. WiT을 선택합니다.
 
 **사용 방법 (How to Use)**
 
-1. 브라우저 우측 상단 확장 프로그램 목록에서 **[RealWage]** 아이콘을 클릭합니다.
+1. 브라우저 우측 상단 확장 프로그램 목록에서 **[WiT]** 아이콘을 클릭합니다.
 2. 팝업 창에 **내 집 주소**를 입력하고 저장합니다.
 3. 알바몬 또는 알바천국 공고 상세 페이지에 접속합니다.
-4. 시급 표기 영역에 새롭게 뜬 **[체감 시급 분석]** 결과를 확인합니다.
+4. 시급 표기 영역에 새롭게 뜬 **[체감 시급]** 결과를 확인합니다.
 
 ---
 
@@ -100,5 +98,7 @@ git clone https://github.com/your-username/real-wage-calculator.git
 
 | 이름 | 역할 | 담당 업무 |
 | --- | --- | --- |
-| **홍길동** | Lead / Front-end | Chrome Extension DOM 파싱, Content Script 및 렌더링 UI 구현 |
-| **김철수** | Back-end / API | Kakao Location API 연동, 통근 시간 및 체감 시급 계산 로직 개발 |
+| **유수연** | PM, BE |
+| **김유진** | BE, 디자이너 |
+| **성연진** | FE, BE |
+| **김시현** | FE, 디자이너 |
