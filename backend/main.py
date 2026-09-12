@@ -1,136 +1,284 @@
 import os
+<<<<<<< Updated upstream
 import re
+=======
+from typing import Optional
+
+>>>>>>> Stashed changes
 import httpx
-from fastapi import FastAPI, Query
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI()
+load_dotenv()
 
-# 크롬 확장 프로그램과의 통신 허용 (CORS 설정)
+KAKAO_REST_KEY = os.getenv("KAKAO_REST_KEY", "").strip()
+ODSAY_API_KEY = os.getenv("ODSAY_API_KEY", "").strip()
+
+app = FastAPI(title="WiT Backend", version="1.0.0")
+
+# 개발 중 편의를 위한 CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+<<<<<<< Updated upstream
 # 발급받으신 API 키
 ODSAY_API_KEY = os.getenv("ODSAY_API_KEY")
 KAKAO_REST_KEY = os.getenv("KAKAO_REST_KEY")
+=======
+KAKAO_ADDRESS_URL = "https://dapi.kakao.com/v2/local/search/address.json"
+KAKAO_KEYWORD_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
+ODSAY_ROUTE_URL = "https://api.odsay.com/v1/api/searchPubTransPathT"
+
+
+class LocationInput(BaseModel):
+    address: Optional[str] = None
+    x: Optional[float] = None  # 경도
+    y: Optional[float] = None  # 위도
+
+>>>>>>> Stashed changes
 
 class RouteRequest(BaseModel):
-    start_address: str
-    end_address: str
+    start: LocationInput
+    end: LocationInput
 
-def normalize_address(addr: str) -> str:
-    """서울시 -> 서울특별시 등 카카오 API 인식용 주소 정규화"""
-    addr = re.sub(r"^서울시\b", "서울특별시", addr.strip())
-    addr = re.sub(r"^부산시\b", "부산광역시", addr)
-    addr = re.sub(r"^인천시\b", "인천광역시", addr)
-    addr = re.sub(r"^대구시\b", "대구광역시", addr)
-    addr = re.sub(r"^대전시\b", "대전광역시", addr)
-    addr = re.sub(r"^광주시\b", "광주광역시", addr)
-    addr = re.sub(r"^울산시\b", "울산광역시", addr)
-    return addr
 
-# 1. 주소 검색 엔드포인트 (키워드/도로명 통합)
-@app.get("/api/search-address")
-async def search_address(query: str = Query(..., description="검색할 주소/키워드")):
-    clean_query = normalize_address(query)
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_KEY}"}
-    results = []
-
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        # 1. 키워드 검색 (고려대학교, 역삼역, OO빌딩 등)
-        res_k = await client.get(
-            "https://dapi.kakao.com/v2/local/search/keyword.json",
-            headers=headers,
-            params={"query": clean_query}
+def kakao_headers():
+    if not KAKAO_REST_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="KAKAO_REST_KEY가 설정되지 않았습니다. backend/.env를 확인하세요.",
         )
-        if res_k.status_code == 200:
-            for d in res_k.json().get("documents", []):
-                addr = d.get("road_address_name") or d.get("address_name")
-                place = d.get("place_name", "")
-                if addr:
-                    results.append({"place_name": place, "address_name": addr})
-
-        # 2. 키워드 결과가 없으면 일반 주소 검색 시도 (도로명/지번)
-        if not results:
-            res_a = await client.get(
-                "https://dapi.kakao.com/v2/local/search/address.json",
-                headers=headers,
-                params={"query": clean_query}
-            )
-            if res_a.status_code == 200:
-                for d in res_a.json().get("documents", []):
-                    road = d.get("road_address")
-                    jibun = d.get("address")
-                    addr_name = road.get("address_name") if road else (jibun.get("address_name") if jibun else d.get("address_name"))
-                    building = road.get("building_name") if road and road.get("building_name") else ""
-                    display_name = f"{addr_name} ({building})" if building else addr_name
-                    results.append({"place_name": display_name, "address_name": addr_name})
-
-    return {"results": results[:7]}
+    return {"Authorization": f"KakaoAK {KAKAO_REST_KEY}"}
 
 
-# 2. 주소 -> WGS84 좌표(경도 sx, 위도 sy) 변환 함수
-async def get_coords(address: str, client: httpx.AsyncClient):
-    clean_addr = normalize_address(address)
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_KEY}"}
+async def kakao_address_search(client: httpx.AsyncClient, query: str):
+    response = await client.get(
+        KAKAO_ADDRESS_URL,
+        headers=kakao_headers(),
+        params={"query": query},
+    )
 
-    url_a = "https://dapi.kakao.com/v2/local/search/address.json"
-    res_a = await client.get(url_a, headers=headers, params={"query": clean_addr})
-    if res_a.status_code == 200:
-        docs = res_a.json().get("documents", [])
-        if docs:
-            return float(docs[0]["x"]), float(docs[0]["y"])
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=f"카카오 주소 검색 오류: {response.status_code} / {response.text}",
+        )
 
-    url_k = "https://dapi.kakao.com/v2/local/search/keyword.json"
-    res_k = await client.get(url_k, headers=headers, params={"query": clean_addr})
-    if res_k.status_code == 200:
-        docs = res_k.json().get("documents", [])
-        if docs:
-            return float(docs[0]["x"]), float(docs[0]["y"])
+    return response.json().get("documents", [])
 
-    return None, None
 
-# 3. ODsay 대중교통 경로 검색 엔드포인트
-@app.post("/api/route")
-async def get_odsay_route(req: RouteRequest):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        sx, sy = await get_coords(req.start_address, client)
-        ex, ey = await get_coords(req.end_address, client)
+async def kakao_keyword_search(client: httpx.AsyncClient, query: str):
+    response = await client.get(
+        KAKAO_KEYWORD_URL,
+        headers=kakao_headers(),
+        params={"query": query},
+    )
 
-        if not sx or not ex:
-            return {"time": 35, "cost": 1500, "status": "coord_not_found"}
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=f"카카오 키워드 검색 오류: {response.status_code} / {response.text}",
+        )
 
-        odsay_url = "https://api.odsay.com/v1/api/searchPubTransPathT"
-        params = {
-            "apiKey": ODSAY_API_KEY,
-            "SX": sx,
-            "SY": sy,
-            "EX": ex,
-            "EY": ey,
-            "OPT": 0
+    return response.json().get("documents", [])
+
+
+def normalize_address_document(doc: dict):
+    return {
+        "place_name": (
+            doc.get("place_name")
+            or (doc.get("road_address") or {}).get("building_name")
+            or doc.get("address_name")
+            or ""
+        ),
+        "address_name": (
+            doc.get("road_address_name")
+            or doc.get("address_name")
+            or (doc.get("road_address") or {}).get("address_name")
+            or (doc.get("address") or {}).get("address_name")
+            or ""
+        ),
+        "x": float(doc["x"]),
+        "y": float(doc["y"]),
+    }
+
+
+async def resolve_location(client: httpx.AsyncClient, location: LocationInput):
+    # 사용자가 집/학교를 검색해서 저장한 경우 좌표를 그대로 사용
+    if location.x is not None and location.y is not None:
+        return {
+            "address": location.address or "",
+            "x": float(location.x),
+            "y": float(location.y),
         }
 
-        res = await client.get(odsay_url, params=params)
-        if res.status_code == 200:
-            odsay_data = res.json()
-            if "result" in odsay_data and "path" in odsay_data["result"]:
-                best_path = odsay_data["result"]["path"][0]
-                total_time = best_path["info"]["totalTime"]
-                total_pay = best_path["info"]["payment"]
-                return {
-                    "time": total_time,
-                    "cost": total_pay if total_pay > 0 else 1500,
-                    "status": "success"
-                }
+    query = (location.address or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="주소 또는 좌표가 필요합니다.")
 
-        return {"time": 30, "cost": 1500, "status": "route_fallback"}
-    
+    # 알바 공고의 '서울 강남구 논현동' 같은 행정주소는 주소 검색을 우선
+    address_docs = await kakao_address_search(client, query)
+
+    if address_docs:
+        doc = address_docs[0]
+        return {
+            "address": (
+                doc.get("road_address_name")
+                or doc.get("address_name")
+                or (doc.get("road_address") or {}).get("address_name")
+                or (doc.get("address") or {}).get("address_name")
+                or query
+            ),
+            "x": float(doc["x"]),
+            "y": float(doc["y"]),
+        }
+
+    # '고려대학교', '강남역' 같은 장소명은 키워드 검색
+    keyword_docs = await kakao_keyword_search(client, query)
+
+    if keyword_docs:
+        doc = keyword_docs[0]
+        return {
+            "address": (
+                doc.get("road_address_name")
+                or doc.get("address_name")
+                or query
+            ),
+            "x": float(doc["x"]),
+            "y": float(doc["y"]),
+        }
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"카카오에서 위치를 찾지 못했습니다: {query}",
+    )
+
+
+@app.get("/health")
+async def health():
+    return {
+        "ok": True,
+        "kakao_key_loaded": bool(KAKAO_REST_KEY),
+        "odsay_key_loaded": bool(ODSAY_API_KEY),
+    }
+
+
+@app.get("/api/search-address")
+async def search_address(
+    query: str = Query(..., min_length=1, description="검색할 주소/장소명")
+):
+    query = query.strip()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        # 사용자가 '고려대학교' 같은 장소명을 많이 입력하므로 키워드 검색을 먼저 표시
+        keyword_docs = await kakao_keyword_search(client, query)
+        address_docs = await kakao_address_search(client, query)
+
+    results = []
+    seen = set()
+
+    for doc in keyword_docs:
+        item = normalize_address_document(doc)
+        key = (round(item["x"], 6), round(item["y"], 6))
+        if key not in seen:
+            seen.add(key)
+            results.append(item)
+
+    for doc in address_docs:
+        item = normalize_address_document(doc)
+        key = (round(item["x"], 6), round(item["y"], 6))
+        if key not in seen:
+            seen.add(key)
+            results.append(item)
+
+    return {"results": results[:10]}
+
+
+@app.post("/api/route")
+async def route(req: RouteRequest):
+    if not ODSAY_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="ODSAY_API_KEY가 설정되지 않았습니다. backend/.env를 확인하세요.",
+        )
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        start = await resolve_location(client, req.start)
+        end = await resolve_location(client, req.end)
+
+        response = await client.get(
+            ODSAY_ROUTE_URL,
+            params={
+                "apiKey": ODSAY_API_KEY,
+                "SX": start["x"],
+                "SY": start["y"],
+                "EX": end["x"],
+                "EY": end["y"],
+                "OPT": 0,
+                "SearchType": 0,
+            },
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=f"ODsay HTTP 오류: {response.status_code} / {response.text}",
+        )
+
+    data = response.json()
+
+    if data.get("error"):
+        raise HTTPException(
+            status_code=502,
+            detail=f"ODsay 오류: {data['error']}",
+        )
+
+    paths = (data.get("result") or {}).get("path") or []
+
+    if not paths:
+        raise HTTPException(
+            status_code=404,
+            detail="ODsay에서 대중교통 경로를 찾지 못했습니다.",
+        )
+
+    # OPT=0 추천/최단 경로의 첫 결과
+    info = paths[0].get("info") or {}
+
+    try:
+        total_time = int(info.get("totalTime", 0))
+        payment = int(info.get("payment", 0))
+        total_distance = int(info.get("totalDistance", 0))
+        total_walk = int(info.get("totalWalk", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=502,
+            detail=f"ODsay 응답 형식이 예상과 다릅니다: {info}",
+        )
+
+    if total_time <= 0:
+        raise HTTPException(
+            status_code=502,
+            detail=f"ODsay가 유효한 이동시간을 반환하지 않았습니다: {info}",
+        )
+
+    return {
+        "time": total_time,
+        "cost": payment,
+        "distance_m": total_distance,
+        "distance_km": round(total_distance / 1000, 1),
+        "walk_m": total_walk,
+        "first_station": info.get("firstStartStation", ""),
+        "last_station": info.get("lastEndStation", ""),
+        "start": start,
+        "end": end,
+    }
