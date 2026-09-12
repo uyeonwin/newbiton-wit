@@ -1,10 +1,7 @@
 import os
-<<<<<<< Updated upstream
 import re
-=======
 from typing import Optional
 
->>>>>>> Stashed changes
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
@@ -30,11 +27,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-<<<<<<< Updated upstream
 # 발급받으신 API 키
 ODSAY_API_KEY = os.getenv("ODSAY_API_KEY")
 KAKAO_REST_KEY = os.getenv("KAKAO_REST_KEY")
-=======
 KAKAO_ADDRESS_URL = "https://dapi.kakao.com/v2/local/search/address.json"
 KAKAO_KEYWORD_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
 ODSAY_ROUTE_URL = "https://api.odsay.com/v1/api/searchPubTransPathT"
@@ -45,7 +40,6 @@ class LocationInput(BaseModel):
     x: Optional[float] = None  # 경도
     y: Optional[float] = None  # 위도
 
->>>>>>> Stashed changes
 
 class RouteRequest(BaseModel):
     start: LocationInput
