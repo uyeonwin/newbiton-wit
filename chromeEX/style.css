@@ -1,50 +1,54 @@
-/* 공고 본문에 부착되는 체감시급 뱃지 */
+/* 알바몬 공고 금액 밑에 달리는 체감 시급 뱃지 */
 .wit-real-badge {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 3px !important;
-  margin-left: 6px !important;
-  padding: 3px 8px !important;
-  background-color: #ecfdf5 !important;
-  border: 1px solid #10b981 !important;
-  border-radius: 6px !important;
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  line-height: 1.2 !important;
-  color: #047857 !important;
-  cursor: pointer !important;
-  vertical-align: middle !important;
-  white-space: nowrap !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
-  transition: all 0.2s ease !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 3px 7px;
+  background-color: #ecfdf5;
+  border: 1.5px solid #10b981;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #065f46;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 .wit-real-badge:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.1) !important;
+  transform: translateY(-1px);
+  background-color: #d1fae5;
+}
+.wit-real-badge.warning-high {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
 }
 
-/* 팝업 모달 전체 배경 오버레이 */
+/* 팝업 모달 배경 */
 .wit-modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(17, 24, 39, 0.6);
-  backdrop-filter: blur(4px);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 99999990;
+  z-index: 9999999;
 }
 
-/* 모달 메인 카드 상자 */
-.wit-modal-card {
+/* 팝업 모달 상자 */
+.wit-modal-box {
   background: #ffffff;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 20px;
+  border: 2px solid #111827;
+  border-radius: 16px;
   width: 90%;
-  max-width: 380px;
+  max-width: 440px;
   padding: 24px;
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  color: #1f2937;
+}
+.wit-modal-box * {
   box-sizing: border-box;
 }
 
