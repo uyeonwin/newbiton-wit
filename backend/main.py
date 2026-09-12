@@ -7,11 +7,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from dotenv import load_dotenv
+
 
 load_dotenv()
 
-load_dotenv()
 
 KAKAO_REST_KEY = os.getenv("KAKAO_REST_KEY", "").strip()
 ODSAY_API_KEY = os.getenv("ODSAY_API_KEY", "").strip()
